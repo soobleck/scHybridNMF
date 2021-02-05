@@ -2,7 +2,7 @@
 %      using Block Principal Pivoting/Active Set method
 %
 % This software solves one the following problems: given A and k, find W and H such that
-%     (1) minimize 1/2 * || A-WH ||_F^2
+%     (1) minimize 1/2 * || A-WH ||_F^2 
 %     (2) minimize 1/2 * ( || A-WH ||_F^2 + alpha * || W ||_F^2 + beta * || H ||_F^2 )
 %     (3) minimize 1/2 * ( || A-WH ||_F^2 + alpha * || W ||_F^2 + beta * (sum_(i=1)^n || H(:,i) ||_1^2 ) )
 %     where W>=0 and H>=0 elementwise.
@@ -41,7 +41,7 @@
 %        NNLS_SOLVER : 'bp' to use the algorithm in [1]
 %                      'as' to use the algorithm in [2]
 %                      Default is 'bp', which is in general faster.
-%        ALPHA : Parameter alpha in the formulation (2) or (3).
+%        ALPHA : Parameter alpha in the formulation (2) or (3). 
 %                Default is the average of all elements in A. No good justfication for this default value, and you might want to try other values.
 %        BETA : Parameter beta in the formulation (2) or (3).
 %               Default is the average of all elements in A. No good justfication for this default value, and you might want to try other values.
@@ -82,15 +82,13 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
     par.max_time = 1e6;
     par.tol = 1e-3;
     par.verbose = 0;
-
+    
     W = rand(m,k);
     H = rand(k,n);
-
+    
     norm2=sqrt(sum(W.^2,1));
-    toNormalize = norm2>0;
-    W(:,toNormalize) = W(:,toNormalize)./repmat(norm2(toNormalize),m,1);
-    H(toNormalize,:) = H(toNormalize,:).*repmat(norm2(toNormalize)',1,n);
-
+    W = W ./ norm2;
+    H = norm2.' .* H; 
 
     % Read optional parameters
     if (rem(length(varargin),2)==1)
@@ -134,19 +132,19 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
     elseif ~strcmp(par.type,'plain')
         error(['Unrecognized type: use ''plain'', ''regularized'', or ''sparse''.']);
     end
-
+    
     if ~strcmp(par.nnls_solver,'bp') && ~strcmp(par.nnls_solver,'as')
         error(['Unrecognized nnls_solver: use ''bp'' or ''as''.']);
     end
-
+    
 %     display(par);
-
+    
     HIS = 0;
     if par.verbose          % collect information for analysis/debugging
         [gradW,gradH] = getGradient(A,W,H,par.type,par.alpha,par.beta);
         initGrNormW = norm(gradW,'fro');
         initGrNormH = norm(gradH,'fro');
-        initNorm = norm(A,'fro');
+        initNorm = norm(A,'fro'); 
         numSC = 3;
         initSCs = zeros(numSC,1);
         for j=1:numSC
@@ -168,7 +166,7 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
         if par.verbose == 2, display(ver);, end
         tPrev = cputime;
     end
-
+    
     tStart = cputime;, tTotal = 0;
     initSC = getInitCriterion(ST_RULE,A,W,H,par.type,par.alpha,par.beta);
     SCconv = 0; SC_COUNT = 3;
@@ -192,7 +190,7 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
         toNormalize = norm2>0;
         W(:,toNormalize) = W(:,toNormalize)./repmat(norm2(toNormalize),m,1);
         H(toNormalize,:) = H(toNormalize,:).*repmat(norm2(toNormalize)',1,n);
-
+        
         if par.verbose          % collect information for analysis/debugging
             elapsed = cputime-tPrev;
             tTotal = tTotal + elapsed;
@@ -215,7 +213,7 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
             if par.verbose == 2, display(ver);, end
             tPrev = cputime;
         end
-
+        
         if (iter > par.min_iter)
             SC = getStopCriterion(ST_RULE,A,W,H,par.type,par.alpha,par.beta,gradW,gradH);
             if (par.verbose && (tTotal > par.max_time)) || (~par.verbose && ((cputime-tStart)>par.max_time))
@@ -228,7 +226,13 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
             end
         end
     end
-
+%     [m,n]=size(A);
+% %     norm2=sqrt(sum(W.^2,1));
+%     norm2=sum(W,1);
+%     toNormalize = norm2>0;
+%     W(:,toNormalize) = W(:,toNormalize)./repmat(norm2(toNormalize),m,1);
+%     H(toNormalize,:) = H(toNormalize,:).*repmat(norm2(toNormalize)',1,n);
+    
     final.iterations = iter;
     if par.verbose
         final.elapsed_total = tTotal;
@@ -242,7 +246,7 @@ function [W,H,iter,HIS]=nmf(A,k,varargin)
 end
 
 %------------------------------------------------------------------------------------------------------------------------
-%                                    Utility Functions
+%                                    Utility Functions 
 %------------------------------------------------------------------------------------------------------------------------
 function [X,grad,iter] = nnlsm(A,B,init,solver)
     switch solver
@@ -251,7 +255,7 @@ function [X,grad,iter] = nnlsm(A,B,init,solver)
         case 'as'
             [X,grad,iter] = nnlsm_activeset(A,B,1,0,init);
     end
-end
+end    
 %-------------------------------------------------------------------------------
 function retVal = getInitCriterion(stopRule,A,W,H,type,alpha,beta,gradW,gradH)
 % STOPPING_RULE : 1 - Normalized proj. gradient
@@ -297,7 +301,7 @@ function retVal = getStopCriterion(stopRule,A,W,H,type,alpha,beta,gradW,gradH)
             retVal = norm(pGrad);
         case 3
             resmat=min(H,gradH); resvec=resmat(:);
-            resmat=min(W,gradW); resvec=[resvec; resmat(:)];
+            resmat=min(W,gradW); resvec=[resvec; resmat(:)]; 
             deltao=norm(resvec,1); %L1-norm
             num_notconv=length(find(abs(resvec)>0));
             retVal=deltao/num_notconv;
